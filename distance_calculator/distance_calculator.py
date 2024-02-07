@@ -3,7 +3,8 @@ Provides functionality to calculate the Minimum Description Length (MDL).
 This module is crucial for evaluating the complexity and quality of the model's representation.
 """
 
-def mdl_calculator(frame_list, mdl_condition):
+# TODO: Implement MDL calculation.
+def distance_calculator(frame_list, dist_condition):
     """
     Calculates the MDL for the given list of frames.
 
@@ -14,4 +15,4 @@ def mdl_calculator(frame_list, mdl_condition):
     Returns:
         The MDL value for the given list of frames.
     """
-    return sum([mdl_condition(frame) for frame in frame_list])
+    return sum([dist_condition(frame) for frame in frame_list])

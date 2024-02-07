@@ -2,85 +2,76 @@
 Implements hierarchical clustering algorithms. 
 This module is responsible for grouping data points into clusters based on their similarities.
 """
-from ..mdl.mdl_calculator import mdl_calculator
+from ..distance_calculator.distance_calculator import distance_calculator
+from ..node.node import Node
 
-# literate over first level of time frames and select the group that has the smalleset MDL
-# TODO: What if there are two distances in the distList that are equally the smallest?
-def compute_init_dist_list(data):
-    distList = []
+# # literate over first level of time frames and select the group that has the smalleset MDL
+# # TODO: What if there are two distances in the distList that are equally the smallest?
+def compute_initial_distances(data):
+    distances = []
     for i in range(len(data) - 1):
-        group = [data[i], data[i+1]]
-        dist = mdl_calculator(group)
-        distList.append(dist)
-    return distList
+        pair = [data[i], data[i+1]]
+        distance = distance_calculator(pair)
+        distances.append(distance)
+    return distances
 
-def find_smallest_distance_group(data, distList):
-    minDist = min(distList)
-    index = distList.index(minDist)
-    return index, data[index], data[index+1]
+def identify_min_distance_pair(data, distances):
+    min_distance = min(distances)
+    # returns the first index of the minimum distance
+    pair_index = distances.index(min_distance)
+    return pair_index, data[pair_index], data[pair_index+1]
 
-# find the smallest distance index using find_smallest_distance_group and then combine the two timeframe in data
-def update_data(data, distList):
+def merge_closest_groups(data, distances):
     """
-    Updates the data and distance list by merging the closest groups.
+    Finds and merges the two closest groups, updates data and distances.
 
     Args:
-        data: A list of data groups.
-        distList: A list of distances between adjacent groups.
+        data: List of data groups.
+        distances: List of distances between adjacent groups.
 
     Returns:
-        Tuple of updated data and distance list.
+        Updated data, distances, and merge record.
     """
-    min_index, group1, group2 = find_smallest_distance_group(data, distList)
-
-    # Merge the closest groups
-    data[min_index] = group1 + group2
-
-    # Remove the merged group
-    if min_index + 1 < len(data):
-        del data[min_index + 1]
-
-    # Update distance list
-    if min_index < len(distList):
-        del distList[min_index]
-
-    # Recalculate distances for the adjacent groups
-    if min_index > 0:
-        prevGroup = [data[min_index - 1], data[min_index]]
-        distList[min_index - 1] = mdl_calculator(prevGroup)
+    index, group1, group2 = identify_min_distance_pair(data, distances)
+    new_group = group1 + group2
+    merge_record = {'indexes': (index, index + 1), 'data': new_group, 'distance': distances[index]}
     
-    if min_index < len(data) - 1:
-        nextGroup = [data[min_index], data[min_index + 1]]
-        distList[min_index] = mdl_calculator(nextGroup)
+    # Perform the merge in data
+    data[index] = new_group
+    del data[index + 1]
 
-    return data, distList
+    # Update distances
+    del distances[index]
+    if index > 0:
+        distances[index - 1] = distance_calculator([data[index - 1], data[index]])
+    if index < len(data) - 1:
+        distances[index] = distance_calculator([data[index], data[index + 1]])
 
-# take the initial data, use compute_init_dist_list to compute the distances between adjacent groups
-# then use update_data to update the data and distance list until the distance list's length = 1
-# form the hcluster process into a tree structure (level 0(highest) length=1, level 1 length = 2, etc) and return it as result
+    return data, distances, merge_record
 
-def hcluster(data):
+def hierarchical_clustering(data):
     """
-    Performs hierarchical clustering on the given data.
-    
+    Performs hierarchical clustering on data, building a tree structure from recorded merges.
+
     Args:
-        data: A list of data groups.
-        
+        data: List of initial data groups.
+
     Returns:
-        A list of data groups in hierarchical order.
-        
+        Root node of the hierarchical clustering tree.
     """
-    distList = compute_init_dist_list(data)
-    treeList = [data]
-    while len(distList) > 1:
-        data, distList = update_data(data, distList)
-        treeList.append(data)
-    treeList.reverse()
-    return treeList
+    distances = compute_initial_distances(data)
+    merges = []  # Record of merges
+    nodes = [Node(index=i, data=d) for i, d in enumerate(data)]  # Initial leaf nodes
 
-    
-    
+    while len(distances) > 1:
+        data, distances, merge_record = merge_closest_groups(data, distances)
+        merges.append(merge_record)
 
+    # Build the tree from recorded merges
+    for merge in merges:
+        index1, index2 = merge['indexes']
+        new_node = Node(index=None, left=nodes[index1], right=nodes[index2], distance=merge['distance'], data=merge['data'])
+        nodes[index1] = new_node  # Replace one of the merged nodes with the new node
+        nodes.pop(index2)  # Remove the other node
 
-        
-
+    return nodes[0]  # The last node is the root of the tree
