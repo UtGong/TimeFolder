@@ -3,15 +3,15 @@ Responsible for selecting the best tree cut using the distance calculator.
 This module evaluates different cuts of the tree to identify the most optimal structure.
 """
 
-from ..distance_calculator.distance_calculator import distance_calculator
+from distance_calculator.distance_calculator import distance_calculator
 
 def find_best_treecut(node_list, best_cut={'score': float('inf'), 'nodes':[]}):
     if node_list is None:
         return best_cut
-    
     curr_dist = distance_calculator(node_list)
-    
+    print("Finding best tree cut, current distance: %s, best distance: %s" % (curr_dist, best_cut['score']))
     if curr_dist < best_cut['score']:
+        print("better cut")
         best_cut = {'score': curr_dist, 'nodes': list(node_list)}
         
     for index, node in enumerate(node_list):

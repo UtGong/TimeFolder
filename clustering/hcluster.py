@@ -2,11 +2,10 @@
 Implements hierarchical clustering algorithms. 
 This module is responsible for grouping data points into clusters based on their similarities.
 """
-from ..distance_calculator.distance_calculator import distance_calculator
-from ..node.node import Node
+from distance_calculator.distance_calculator import distance_calculator
+from node.node import Node
 
-# # literate over first level of time frames and select the group that has the smalleset MDL
-# # TODO: What if there are two distances in the distList that are equally the smallest?
+# literate over first level of time frames and select the group that has the smalleset MDL
 def compute_initial_distances(data):
     distances = []
     for i in range(len(data) - 1):
@@ -62,7 +61,6 @@ def hierarchical_clustering(data):
     distances = compute_initial_distances(data)
     merges = []  # Record of merges
     nodes = [Node(index=i, data=d) for i, d in enumerate(data)]  # Initial leaf nodes
-
     while len(distances) > 1:
         data, distances, merge_record = merge_closest_groups(data, distances)
         merges.append(merge_record)
@@ -70,8 +68,10 @@ def hierarchical_clustering(data):
     # Build the tree from recorded merges
     for merge in merges:
         index1, index2 = merge['indexes']
-        new_node = Node(index=None, left=nodes[index1], right=nodes[index2], distance=merge['distance'], data=merge['data'])
+        # Create the new node without left and right children
+        new_node = Node(index=None, data=merge['data'])
+        # Use set_children to set left and right children and automatically update their parent references
+        new_node.set_children(left=nodes[index1], right=nodes[index2])
         nodes[index1] = new_node  # Replace one of the merged nodes with the new node
         nodes.pop(index2)  # Remove the other node
-
     return nodes[0]  # The last node is the root of the tree
