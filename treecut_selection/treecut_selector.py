@@ -1,25 +1,48 @@
 """
-Responsible for selecting the best tree cut using the distance calculator. 
-This module evaluates different cuts of the tree to identify the most optimal structure.
+Module Description:
+Responsible for selecting the best tree cut based on the distance calculator.
+This module evaluates various cuts of a hierarchical tree to identify the most optimal structure,
+minimizing the descriptive length and thus finding a balance between the complexity and goodness of fit.
+
+Dependencies:
+- distance_calculator.distance_calculator: Provides functionality to calculate the descriptive length of a node.
+- node.node: Defines the Node class used to construct the hierarchical tree.
 """
 
-from distance_calculator.distance_calculator import distance_calculator
+from distance_calculator.distance_calculator import descriptive_length
+from node.node import Node
 
-def find_best_treecut(node_list, best_cut={'score': float('inf'), 'nodes':[]}):
-    if node_list is None:
-        return best_cut
-    curr_dist = distance_calculator(node_list)
-    print("Finding best tree cut, current distance: %s, best distance: %s" % (curr_dist, best_cut['score']))
-    if curr_dist < best_cut['score']:
-        print("better cut")
-        best_cut = {'score': curr_dist, 'nodes': list(node_list)}
-        
-    for index, node in enumerate(node_list):
-        if node.left is not None and node.right is not None:
-            # Create a new list that includes the children instead of the current node
-            testing_node_list = node_list[:index] + [node.left, node.right] + node_list[index+1:]
-            best_cut = find_best_treecut(testing_node_list, best_cut)
-            
-    return best_cut
+def find_best_treecut(node):
+    """
+    Recursively find the best tree cut that minimizes the total descriptive length.
+    
+    Args:
+    - node (Node): The current node being evaluated in the hierarchical tree.
+    
+    Returns:
+    - list[Node]: A list of nodes representing the best cut of the tree.
+    """
+    
+    # Base case: if the node is a leaf (has no children), return a list containing just this node.
+    if not node.left and not node.right:
+        return [node]
+    
+    # Recursive case: explore both left and right subtrees to find the best cut.
+    combined_results = []
+    if node.left:
+        combined_results.extend(find_best_treecut(node.left))
+    if node.right:
+        combined_results.extend(find_best_treecut(node.right))
 
-        
+    # Calculate the descriptive length of the current node as a root of the subtree.
+    root_length = descriptive_length(len(node.data), node)
+    
+    # Calculate the total descriptive length of the children nodes if this node is cut.
+    children_length = sum(descriptive_length(len(child.data), child) for child in combined_results)
+
+    # Compare the descriptive length of keeping the current node as a root vs cutting it.
+    # Return the current node as a single element list if it's shorter, otherwise return the combined results of children.
+    if root_length < children_length:
+        return [node]  # More optimal to keep this node as a root.
+    else:
+        return combined_results  # More optimal to cut this node and use the children nodes.

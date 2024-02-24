@@ -1,11 +1,12 @@
 class Node:
-    def __init__(self, index, left=None, right=None, distance=0.0, data=None, parent=None):
+    def __init__(self, index, left=None, right=None, distance=0.0, data=None, date=None, parent=None):
         self.index = index
         self.left = left
         self.right = right
         self.distance = distance
         self.data = data
         self.parent = parent
+        self.date = date
 
     def set_children(self, left=None, right=None):
         self.left = left
@@ -15,13 +16,10 @@ class Node:
         
 def print_tree_ascii(node, prefix="", isLeft=True):
     if node is not None:
-        # print("start printing tree")
         # Determine the line and branch characters based on the position of the node
         if node.left or node.right:  # Not the root node
-            # print("if loop")
             line = "├── " if isLeft else "└── "
         else:  # Root node doesn't have a parent
-            # print("else loop")
             line = ""
         # Print the current node's details
         print(f"{prefix}{line} Data: {node.data}")

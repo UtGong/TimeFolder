@@ -1,77 +1,134 @@
 """
-Implements hierarchical clustering algorithms. 
-This module is responsible for grouping data points into clusters based on their similarities.
+Module for Hierarchical Clustering
+This module is designed to organize data points into clusters based on their similarity.
 """
-from distance_calculator.distance_calculator import distance_calculator
+
+from distance_calculator.distance_calculator import descriptive_length
 from node.node import Node
 
-# literate over first level of time frames and select the group that has the smalleset MDL
-def compute_initial_distances(data):
+
+def build_time_series_pairs(data, date_column, value_column):
+    """
+    Constructs pairs of consecutive data points from the given data set, combining their dates and values.
+
+    Parameters:
+    - data: A list of dictionaries, each containing 'date' and 'value'.
+
+    Returns:
+    - A list of dictionaries, each representing a pair of consecutive data points with combined dates and values.
+    """
+    pairs = []
+    for i in range(len(data) - 1):
+        start_date = data.iloc[i][date_column]
+        end_date = data.iloc[i + 1][date_column]
+        values = [data.iloc[i][value_column], data.iloc[i + 1][value_column]]
+        pairs.append({'date': f'{start_date} | {end_date}', 'value': values})
+    return pairs
+
+
+def calculate_initial_pairwise_distances(data):
+    """
+    Computes the initial distances between consecutive data point pairs using the Minimum Description Length (MDL).
+
+    Parameters:
+    - data: A list of data points.
+
+    Returns:
+    - A list of distances between consecutive data point pairs.
+    """
     distances = []
     for i in range(len(data) - 1):
-        pair = [data[i], data[i+1]]
-        distance = distance_calculator(pair)
+        pair = [data[i]['value'][0], data[i+1]
+                ['value'][len(data[i+1]['value']) - 1]]
+        pair_length = len(data[i]['value']) + len(data[i+1]['value'])
+        distance = descriptive_length(pair_length, pair)
         distances.append(distance)
     return distances
 
-def identify_min_distance_pair(data, distances):
+
+def find_pair_with_minimum_distance(data, distances):
+    """
+    Identifies the pair of data points with the minimum distance.
+
+    Parameters:
+    - data: A list of data points.
+    - distances: A list of distances between consecutive data point pairs.
+
+    Returns:
+    - The index of the pair with the minimum distance, and the data points forming that pair.
+    """
     min_distance = min(distances)
-    # returns the first index of the minimum distance
     pair_index = distances.index(min_distance)
     return pair_index, data[pair_index], data[pair_index+1]
 
-def merge_closest_groups(data, distances):
-    """
-    Finds and merges the two closest groups, updates data and distances.
 
-    Args:
-        data: List of data groups.
-        distances: List of distances between adjacent groups.
+def merge_nearest_neighbors(data, distances):
+    """
+    Merges the closest pair of data points and updates the distances accordingly.
+
+    Parameters:
+    - data: A list of data points.
+    - distances: A list of distances between consecutive data point pairs.
 
     Returns:
-        Updated data, distances, and merge record.
+    - Updated data and distances after merging the closest pair of data points, along with the merge record.
     """
-    index, group1, group2 = identify_min_distance_pair(data, distances)
-    new_group = group1 + group2
-    merge_record = {'indexes': (index, index + 1), 'data': new_group, 'distance': distances[index]}
+    index, group1, group2 = find_pair_with_minimum_distance(data, distances)
+    new_group = {'date': group1['date'].split(' | ')[
+        0] + ' | ' + group2['date'].split(' | ')[1], 'value': group1['value'] + group2['value'][1:]}
+    new_value = group1['value'] + group2['value'][1:]
+    new_date = group1['date'].split(
+        ' | ')[0] + ' | ' + group2['date'].split(' | ')[1]
+    merge_record = {'indexes': (index, index + 1), 'value': new_value,
+                    'date': new_date, 'distance': distances[index]}
     
-    # Perform the merge in data
+    # Perform the merge operation on the data
     data[index] = new_group
     del data[index + 1]
 
-    # Update distances
+    # Update the pairwise distances
     del distances[index]
+
     if index > 0:
-        distances[index - 1] = distance_calculator([data[index - 1], data[index]])
+        pair_length = len(data[index - 1]['value']) + len(data[index]['value'])
+        distances[index - 1] = descriptive_length(pair_length,
+                                                  [data[index - 1]['value'][0], data[index]['value'][len(data[index]['value']) - 1]])
     if index < len(data) - 1:
-        distances[index] = distance_calculator([data[index], data[index + 1]])
+        pair_length = len(data[index]['value']) + len(data[index + 1]['value'])
+        distances[index] = descriptive_length(pair_length,
+                                              [data[index]['value'][0], data[index + 1]['value'][len(data[index + 1]['value']) - 1]])
 
     return data, distances, merge_record
 
-def hierarchical_clustering(data):
-    """
-    Performs hierarchical clustering on data, building a tree structure from recorded merges.
 
-    Args:
-        data: List of initial data groups.
+def perform_hierarchical_clustering(initial_data, date_column, value_column):
+    """
+    Executes the hierarchical clustering algorithm on the given data set.
+
+    Parameters:
+    - initial_data: A list of initial data points.
 
     Returns:
-        Root node of the hierarchical clustering tree.
+    - The root node of the constructed hierarchical clustering tree.
     """
-    distances = compute_initial_distances(data)
-    merges = []  # Record of merges
-    nodes = [Node(index=i, data=d) for i, d in enumerate(data)]  # Initial leaf nodes
-    while len(distances) > 1:
-        data, distances, merge_record = merge_closest_groups(data, distances)
+    data = build_time_series_pairs(initial_data, date_column, value_column)
+    distances = calculate_initial_pairwise_distances(data)
+    merges = []  # Keeps a record of all merges performed
+    nodes = [Node(index=i, data=d['value'], date=d['date'])
+             for i, d in enumerate(data)]  # Initialize leaf nodes
+
+    while len(data) > 1:
+        data, distances, merge_record = merge_nearest_neighbors(
+            data, distances)
         merges.append(merge_record)
 
-    # Build the tree from recorded merges
+    # Construct the hierarchical clustering tree from merge records
     for merge in merges:
         index1, index2 = merge['indexes']
-        # Create the new node without left and right children
-        new_node = Node(index=None, data=merge['data'])
-        # Use set_children to set left and right children and automatically update their parent references
+        new_node = Node(index=None, data=merge['value'], date=merge['date'])
         new_node.set_children(left=nodes[index1], right=nodes[index2])
-        nodes[index1] = new_node  # Replace one of the merged nodes with the new node
+        # Replace one of the merged nodes with the new node
+        nodes[index1] = new_node
         nodes.pop(index2)  # Remove the other node
-    return nodes[0]  # The last node is the root of the tree
+
+    return nodes[0]  # The final node is the root of the tree

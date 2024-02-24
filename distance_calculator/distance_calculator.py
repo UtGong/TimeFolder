@@ -1,29 +1,106 @@
 import math
+from typing import Union, List
 from node.node import Node
-"""
-Provides functionality to calculate the Minimum Description Length (MDL).
-This module is crucial for evaluating the complexity and quality of the model's representation.
-"""
 
-def mock_distance_condition(point1, point2):
-    if isinstance(point1, Node):
-        point1 = point1.data
-        point2 = point2.data
-    return abs(point2 - point1)   
-
-# TODO: Implement MDL calculation.
-def distance_calculator(frame_list, dist_condition=mock_distance_condition):
+def info_length(node_length: int) -> float:
     """
-    Calculates the distance for the given list of frames.
-
+    Calculate the information length of a node.
+    
     Args:
-        frame_list: A list of frames to be evaluated.
-        mdl_condition: A function that returns the distance condition for a given frame.
-
+    - node_length (int): The length of the node.
+    
     Returns:
-        The distance value for the given list of frames.
+    - float: The calculated information length.
     """
-    # TODO: this if statement is only used for testing purposes, remove it when the distance_condition is implemented
-    if len(frame_list) == 1:
-        return 999
-    return sum([dist_condition(frame_list[i], frame_list[i+1]) for i in range(len(frame_list) - 1)])
+    return (node_length * math.log2(node_length + 1)) / 2
+
+def probability_of_change(timeframe: List[float], direction: str = 'rising') -> float:
+    """
+    Calculates the probability of a change (either rising or falling) between two points in time.
+    
+    Args:
+    - timeframe (List[float]): A list containing two points in time.
+    - direction (str, optional): The direction of change ('rising' or 'falling'). Defaults to 'rising'.
+    
+    Returns:
+    - float: The probability of the specified change occurring.
+    """
+    diff = timeframe[1] - timeframe[0]
+    exponent = -diff if direction == 'rising' else diff
+    return 1 / (1 + math.exp(exponent))
+
+def info_entropy(node: Union[List[float], Node], direction: str = 'rising') -> float:
+    """
+    Calculate the information entropy of a node, measuring the uncertainty or disorder.
+    
+    Args:
+    - node (Union[List, Node]): The node data as a list or a Node object.
+    - direction (str, optional): The direction of change ('rising' or 'falling'). Defaults to 'rising'.
+    
+    Returns:
+    - float: The calculated information entropy.
+    """
+    data = node if isinstance(node, list) else node.data
+    pr_t = probability_of_change([data[0], data[-1]], direction)
+    entropy = pr_t * math.log2(pr_t) if pr_t > 0 else 0
+    return -entropy
+
+def loss_function(node: Union[List[float], Node], direction: str = 'rising') -> float:
+    """
+    Calculates a loss function for the node based on the probability of change.
+    
+    Args:
+    - node (Union[List, Node]): The node data as a list or a Node object.
+    - direction (str, optional): The direction of change ('rising' or 'falling'). Defaults to 'rising'.
+    
+    Returns:
+    - float: The calculated loss.
+    """
+    data = node if isinstance(node, list) else node.data
+    pr_t = probability_of_change([data[0], data[-1]], direction)
+    return -pr_t
+
+def descriptive_length(node_length: int, node: Union[List[float], Node], direction: str = 'rising') -> float:
+    """
+    Compute the descriptive length of a node by summing its information length and loss function.
+    This represents a balance between the structure's complexity and the data's diversity.
+    
+    Args:
+    - node_length (int): The length of the node.
+    - node (Union[List, Node]): The node data as a list or a Node object.
+    - direction (str, optional): The direction of change ('rising' or 'falling'). Defaults to 'rising'.
+    
+    Returns:
+    - float: The calculated descriptive length.
+    """
+    return info_length(node_length) + loss_function(node, direction)
+
+# def descriptive_length(node_length: int, node: Union[List[float], Node], direction: str = 'rising') -> float:
+#     """
+#     Compute the descriptive length of a node by summing its information length and loss function.
+#     This represents a balance between the structure's complexity and the data's diversity.
+    
+#     Args:
+#     - node_length (int): The length of the node.
+#     - node (Union[List, Node]): The node data as a list or a Node object.
+#     - direction (str, optional): The direction of change ('rising' or 'falling'). Defaults to 'rising'.
+    
+#     Returns:
+#     - float: The calculated descriptive length.
+#     """
+#     return info_length(node_length) + loss_function(node, direction)
+
+def descriptive_length(node_length, node: Union[List, Node]) -> float:
+    """
+    Compute the descriptive length of a node by summing its information length and loss function.
+    This represents a balance between the structure's complexity and the data's diversity.
+    
+    Args:
+    - node_length (int): The length of the node.
+    - node (Union[List, Node]): The node data as a list or a Node object.
+    - direction (str, optional): The direction of change ('rising' or 'falling'). Defaults to 'rising'.
+    
+    Returns:
+    - float: The calculated descriptive length.
+    """
+    return info_length(node_length) + info_entropy(node)
