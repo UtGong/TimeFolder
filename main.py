@@ -38,6 +38,7 @@ def main():
     # Merge data and plot
     merged_data = merge_data(best_cut)
     plot_merged_data(merged_data, y_params, folder_name, method)
+    
 
 def load_and_filter_data(csv_file_path, date_range, date_column, value_column):
     csv = pd.read_csv(csv_file_path)
